@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>幼兒圖卡分類遊戲</title>
+  <link rel="stylesheet" href="drag-sort-game.css">
+</head>
+<body>
+  <main class="game-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Kids Matching Game</p>
+        <h1>把圖卡拖到正確的家</h1>
+        <p class="intro">把左邊的圖卡拖到右邊相同類別的範例圖卡上。動物、植物、食物，各自找到自己的位置。</p>
+      </div>
+      <div class="hero-actions">
+        <div class="progress-card">
+          <span class="progress-label">完成進度</span>
+          <strong id="progress-text">0 / 9</strong>
+        </div>
+        <button id="sound-toggle" type="button" aria-pressed="true">音效開啟</button>
+        <button id="reset-button" type="button">重新開始</button>
+      </div>
+    </section>
+
+    <section class="board" aria-label="圖卡分類遊戲區">
+      <div class="cards-panel">
+        <div class="panel-title">
+          <h2>待分類圖卡</h2>
+          <p>拖曳圖卡到右邊對應的範例區</p>
+        </div>
+        <div id="cards-pool" class="cards-pool" aria-live="polite"></div>
+      </div>
+
+      <div class="targets-panel">
+        <div class="panel-title">
+          <h2>分類區</h2>
+          <p>把同一類的圖卡放在一起</p>
+        </div>
+        <div id="targets" class="targets"></div>
+      </div>
+    </section>
+
+    <div id="feedback" class="feedback" role="status" aria-live="assertive"></div>
+    <div id="celebration" class="celebration hidden" role="dialog" aria-modal="true" aria-labelledby="celebration-title">
+      <div class="celebration-card">
+        <p class="celebration-star">★</p>
+        <h2 id="celebration-title">太棒了！全部都分類成功！</h2>
+        <p>你已經把所有圖卡都送回正確的家。</p>
+        <button id="play-again-button" type="button">再玩一次</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="drag-sort-game.js"></script>
+</body>
+</html>
