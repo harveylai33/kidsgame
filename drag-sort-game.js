@@ -4,17 +4,32 @@ const categories = [
   { id: "foods", title: "食物", icon: "🍎" }
 ];
 
-const baseCards = [
-  { id: "lion", label: "獅子", icon: "🦁", category: "animals" },
-  { id: "rabbit", label: "兔子", icon: "🐰", category: "animals" },
-  { id: "fish", label: "小魚", icon: "🐟", category: "animals" },
-  { id: "flower", label: "花朵", icon: "🌼", category: "plants" },
-  { id: "tree", label: "樹木", icon: "🌲", category: "plants" },
-  { id: "cactus", label: "仙人掌", icon: "🌵", category: "plants" },
-  { id: "banana", label: "香蕉", icon: "🍌", category: "foods" },
-  { id: "bread", label: "麵包", icon: "🍞", category: "foods" },
-  { id: "watermelon", label: "西瓜", icon: "🍉", category: "foods" }
-];
+const cardBank = {
+  animals: [
+    { id: "lion", label: "獅子", icon: "🦁", category: "animals" },
+    { id: "rabbit", label: "兔子", icon: "🐰", category: "animals" },
+    { id: "fish", label: "小魚", icon: "🐟", category: "animals" },
+    { id: "elephant", label: "大象", icon: "🐘", category: "animals" },
+    { id: "monkey", label: "猴子", icon: "🐵", category: "animals" },
+    { id: "chick", label: "小雞", icon: "🐥", category: "animals" }
+  ],
+  plants: [
+    { id: "flower", label: "花朵", icon: "🌼", category: "plants" },
+    { id: "tree", label: "樹木", icon: "🌲", category: "plants" },
+    { id: "cactus", label: "仙人掌", icon: "🌵", category: "plants" },
+    { id: "tulip", label: "鬱金香", icon: "🌷", category: "plants" },
+    { id: "leaf", label: "葉子", icon: "🍃", category: "plants" },
+    { id: "seedling", label: "小芽", icon: "🌱", category: "plants" }
+  ],
+  foods: [
+    { id: "banana", label: "香蕉", icon: "🍌", category: "foods" },
+    { id: "bread", label: "麵包", icon: "🍞", category: "foods" },
+    { id: "watermelon", label: "西瓜", icon: "🍉", category: "foods" },
+    { id: "strawberry", label: "草莓", icon: "🍓", category: "foods" },
+    { id: "carrot", label: "紅蘿蔔", icon: "🥕", category: "foods" },
+    { id: "grapes", label: "葡萄", icon: "🍇", category: "foods" }
+  ]
+};
 
 const pool = document.getElementById("cards-pool");
 const targetsRoot = document.getElementById("targets");
@@ -29,67 +44,44 @@ let cards = [];
 let placedCount = 0;
 let activeDrag = null;
 let feedbackTimer = null;
+let completeSoundTimer = null;
 let soundEnabled = true;
-let audioContext = null;
+let previousRoundOrder = [];
+const soundEffects = {
+  correct: new Audio("assets/audio/correct.wav"),
+  wrong: new Audio("assets/audio/wrong.wav"),
+  complete: new Audio("assets/audio/complete.wav")
+};
 
-function ensureAudioContext() {
+Object.values(soundEffects).forEach((audio) => {
+  audio.preload = "auto";
+  audio.volume = 0.85;
+});
+
+function playSound(name) {
   if (!soundEnabled) {
-    return null;
-  }
-
-  if (!audioContext) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) {
-      return null;
-    }
-    audioContext = new AudioContextClass();
-  }
-
-  if (audioContext.state === "suspended") {
-    audioContext.resume().catch(() => {});
-  }
-
-  return audioContext;
-}
-
-function playTone({ frequency, duration, type = "sine", volume = 0.18, delay = 0 }) {
-  const context = ensureAudioContext();
-  if (!context) {
     return;
   }
 
-  const oscillator = context.createOscillator();
-  const gainNode = context.createGain();
-  const startTime = context.currentTime + delay;
-  const endTime = startTime + duration;
+  const audio = soundEffects[name];
+  if (!audio) {
+    return;
+  }
 
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, startTime);
-
-  gainNode.gain.setValueAtTime(0.0001, startTime);
-  gainNode.gain.exponentialRampToValueAtTime(volume, startTime + 0.02);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, endTime);
-
-  oscillator.connect(gainNode);
-  gainNode.connect(context.destination);
-  oscillator.start(startTime);
-  oscillator.stop(endTime);
+  audio.currentTime = 0;
+  audio.play().catch(() => {});
 }
 
 function playCorrectSound() {
-  playTone({ frequency: 523.25, duration: 0.12, type: "triangle", volume: 0.12 });
-  playTone({ frequency: 659.25, duration: 0.18, type: "triangle", volume: 0.14, delay: 0.08 });
+  playSound("correct");
 }
 
 function playWrongSound() {
-  playTone({ frequency: 220, duration: 0.16, type: "sawtooth", volume: 0.08 });
-  playTone({ frequency: 180, duration: 0.18, type: "sawtooth", volume: 0.06, delay: 0.1 });
+  playSound("wrong");
 }
 
 function playCompleteSound() {
-  playTone({ frequency: 523.25, duration: 0.14, type: "triangle", volume: 0.12 });
-  playTone({ frequency: 659.25, duration: 0.14, type: "triangle", volume: 0.14, delay: 0.12 });
-  playTone({ frequency: 783.99, duration: 0.22, type: "triangle", volume: 0.16, delay: 0.24 });
+  playSound("complete");
 }
 
 function updateSoundToggle() {
@@ -104,6 +96,39 @@ function shuffle(items) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function isSameOrder(cardsA, cardsB) {
+  if (cardsA.length !== cardsB.length) {
+    return false;
+  }
+
+  return cardsA.every((card, index) => card.id === cardsB[index]);
+}
+
+function buildNextRoundCards() {
+  let nextCards = [];
+
+  categories.forEach((category) => {
+    const options = shuffle(cardBank[category.id]).slice(0, 3);
+    nextCards.push(...options);
+  });
+
+  nextCards = shuffle(nextCards);
+
+  if (nextCards.length > 1) {
+    while (isSameOrder(nextCards, previousRoundOrder)) {
+      const rerolledCards = [];
+      categories.forEach((category) => {
+        const options = shuffle(cardBank[category.id]).slice(0, 3);
+        rerolledCards.push(...options);
+      });
+      nextCards = shuffle(rerolledCards);
+    }
+  }
+
+  previousRoundOrder = nextCards;
+  return nextCards.map((card) => ({ ...card, placed: false }));
 }
 
 function createCard(card) {
@@ -172,15 +197,19 @@ function updateProgress() {
   progressText.textContent = `${placedCount} / ${cards.length}`;
   if (placedCount === cards.length) {
     celebration.classList.remove("hidden");
-    playCompleteSound();
+    window.clearTimeout(completeSoundTimer);
+    completeSoundTimer = window.setTimeout(() => {
+      playCompleteSound();
+    }, 500);
     showFeedback("全部都分類完成了，真厲害！", "success");
   }
 }
 
 function resetGame() {
-  cards = shuffle(baseCards).map((card) => ({ ...card, placed: false }));
+  cards = buildNextRoundCards();
   placedCount = 0;
   activeDrag = null;
+  window.clearTimeout(completeSoundTimer);
   celebration.classList.add("hidden");
   createTargets();
   renderPool();
@@ -203,7 +232,6 @@ function startDrag(event, card, element) {
   }
 
   event.preventDefault();
-  ensureAudioContext();
 
   const rect = element.getBoundingClientRect();
   activeDrag = {
@@ -340,9 +368,6 @@ function cleanupDrag() {
 
 soundToggle.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
-  if (soundEnabled) {
-    ensureAudioContext();
-  }
   updateSoundToggle();
 });
 
