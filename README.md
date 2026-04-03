@@ -11,4 +11,4 @@
 
 ## 使用方式
 
-直接用瀏覽器開啟 `drag-sort-game.html` 即可開始遊玩。
+先用瀏覽器開啟 `index.html` 進入遊戲目錄，再從首頁進入 `drag-sort-game.html`。
